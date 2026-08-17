@@ -28,6 +28,21 @@ if x11_dep.found()
   add_project_arguments('-DHAVE_X11', language: 'c')
 endif
 
+wl_client_dep = dependency('wayland-client', required: false)
+wl_cursor_dep = dependency('wayland-cursor', required: false)
+wayland_scanner = find_program('wayland-scanner', required: false)
+
+if wl_client_dep.found() and wayland_scanner.found()
+  vaxp_deps += wl_client_dep
+  if wl_cursor_dep.found()
+    vaxp_deps += wl_cursor_dep
+  endif
+  add_project_arguments('-DHAVE_WAYLAND', language: 'c')
+  have_wayland = true
+else
+  have_wayland = false
+endif
+
 subdir('data')
 subdir('src')
 
