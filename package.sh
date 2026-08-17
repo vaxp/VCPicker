@@ -29,7 +29,7 @@ Priority: optional
 Architecture: $ARCH
 Maintainer: $MAINTAINER <maintainer@example.com>
 Description: $DESCRIPTION
-Depends: libgtk-4-1, libglib2.0-0, libx11-6
+Depends: libgtk-4-1, libglib2.0-0, libx11-6, libwayland-client0, libwayland-cursor0
 EOF
 
 echo "Building the project..."

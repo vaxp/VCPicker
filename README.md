@@ -22,9 +22,9 @@
 You can easily build the project natively using the Meson build system:
 
 ```bash
-meson setup build
-ninja -C build
-./build/vaxp-color-picker
+meson setup build --prefix=/usr --buildtype=release
+meson compile -C build
+meson install -C build
 ```
 
 ---

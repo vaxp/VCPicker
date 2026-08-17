@@ -52,6 +52,11 @@ typedef struct {
 
     double pointer_x;
     double pointer_y;
+
+    int prev_lens_x;
+    int prev_lens_y;
+    int prev_lens_w;
+    int prev_lens_h;
 } WaylandOutputData;
 
 struct WaylandPickerData {
@@ -197,6 +202,132 @@ static const struct zwlr_layer_surface_v1_listener layer_surface_listener = {
     .closed = layer_surface_handle_closed,
 };
 
+static void draw_magnifier_lens(WaylandOutputData *out, int px, int py) {
+    if (!out || !out->layer_shm_data || !out->screencopy_shm_data) return;
+    if (out->buffer_width == 0 || out->buffer_height == 0) return;
+
+    uint32_t *layer_pixels = (uint32_t *)out->layer_shm_data;
+    uint32_t width = out->buffer_width;
+    uint32_t height = out->buffer_height;
+
+    if (out->prev_lens_w > 0 && out->prev_lens_h > 0) {
+        int lx = out->prev_lens_x;
+        int ly = out->prev_lens_y;
+        int lw = out->prev_lens_w;
+        int lh = out->prev_lens_h;
+        for (int r = ly; r < ly + lh && r < (int)height; r++) {
+            if (r < 0) continue;
+            for (int c = lx; c < lx + lw && c < (int)width; c++) {
+                if (c < 0) continue;
+                layer_pixels[r * width + c] = 0x00000000;
+            }
+        }
+    }
+
+    int grid_size = 11;
+    int cell_size = 10;
+    int lens_size = grid_size * cell_size;
+    int border_thick = 3;
+    int total_lens_w = lens_size + 2 * border_thick;
+    int total_lens_h = lens_size + 2 * border_thick;
+
+    int lens_x = px + 24;
+    int lens_y = py + 24;
+
+    if (lens_x + total_lens_w > (int)width) {
+        lens_x = px - total_lens_w - 12;
+    }
+    if (lens_y + total_lens_h > (int)height) {
+        lens_y = py - total_lens_h - 12;
+    }
+    if (lens_x < 0) lens_x = 0;
+    if (lens_y < 0) lens_y = 0;
+
+    out->prev_lens_x = lens_x;
+    out->prev_lens_y = lens_y;
+    out->prev_lens_w = total_lens_w;
+    out->prev_lens_h = total_lens_h;
+
+    double center_x = total_lens_w / 2.0;
+    double center_y = total_lens_h / 2.0;
+    double outer_radius = total_lens_w / 2.0;
+    double inner_radius = outer_radius - border_thick;
+
+    for (int r = 0; r < total_lens_h; r++) {
+        int dst_y = lens_y + r;
+        if (dst_y < 0 || dst_y >= (int)height) continue;
+        for (int c = 0; c < total_lens_w; c++) {
+            int dst_x = lens_x + c;
+            if (dst_x < 0 || dst_x >= (int)width) continue;
+
+            double dx = (c + 0.5) - center_x;
+            double dy = (r + 0.5) - center_y;
+            double dist_sq = dx * dx + dy * dy;
+
+            if (dist_sq > outer_radius * outer_radius) {
+                continue;
+            }
+
+            if (dist_sq >= inner_radius * inner_radius) {
+                layer_pixels[dst_y * width + dst_x] = 0xFF1E1E1E;
+                continue;
+            }
+
+            int inner_r = r - border_thick;
+            int inner_c = c - border_thick;
+
+            int sample_grid_x = inner_c / cell_size;
+            int sample_grid_y = inner_r / cell_size;
+
+            int src_x = px + (sample_grid_x - grid_size / 2);
+            int src_y = py + (sample_grid_y - grid_size / 2);
+
+            if (src_x < 0) src_x = 0;
+            if (src_y < 0) src_y = 0;
+            if ((uint32_t)src_x >= out->buffer_width) src_x = (int)out->buffer_width - 1;
+            if ((uint32_t)src_y >= out->buffer_height) src_y = (int)out->buffer_height - 1;
+
+            if (out->frame_y_invert) {
+                src_y = (int)out->buffer_height - 1 - src_y;
+            }
+
+            uint32_t src_pixel = *(uint32_t *)((uint8_t *)out->screencopy_shm_data + (size_t)src_y * out->buffer_stride + (size_t)src_x * 4);
+
+            uint8_t r_val = 0, g_val = 0, b_val = 0;
+            switch (out->buffer_format) {
+                case WL_SHM_FORMAT_XBGR8888:
+                case WL_SHM_FORMAT_ABGR8888:
+                    r_val = (src_pixel) & 0xFF;
+                    g_val = (src_pixel >> 8) & 0xFF;
+                    b_val = (src_pixel >> 16) & 0xFF;
+                    break;
+                case WL_SHM_FORMAT_ARGB8888:
+                case WL_SHM_FORMAT_XRGB8888:
+                default:
+                    b_val = (src_pixel) & 0xFF;
+                    g_val = (src_pixel >> 8) & 0xFF;
+                    r_val = (src_pixel >> 16) & 0xFF;
+                    break;
+            }
+
+            gboolean is_center_cell = (sample_grid_x == grid_size / 2) && (sample_grid_y == grid_size / 2);
+            int cell_local_x = inner_c % cell_size;
+            int cell_local_y = inner_r % cell_size;
+            gboolean is_cell_border = (cell_local_x == 0 || cell_local_x == cell_size - 1 || cell_local_y == 0 || cell_local_y == cell_size - 1);
+
+            if (is_center_cell && is_cell_border) {
+                layer_pixels[dst_y * width + dst_x] = 0xFFFF0000;
+            } else {
+                layer_pixels[dst_y * width + dst_x] = (0xFF << 24) | (r_val << 16) | (g_val << 8) | b_val;
+            }
+        }
+    }
+
+    wl_surface_attach(out->layer_surface, out->layer_buffer, 0, 0);
+    wl_surface_damage(out->layer_surface, 0, 0, (int32_t)width, (int32_t)height);
+    wl_surface_commit(out->layer_surface);
+}
+
 static void extract_color_from_output(WaylandOutputData *out, int x, int y) {
     if (!out || !out->screencopy_shm_data || out->buffer_width == 0 || out->buffer_height == 0) return;
 
@@ -287,6 +418,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *pointer, uint32_
         ctx->active_output = out;
         out->pointer_x = wl_fixed_to_double(sx);
         out->pointer_y = wl_fixed_to_double(sy);
+        draw_magnifier_lens(out, (int)out->pointer_x, (int)out->pointer_y);
     }
     set_crosshair_cursor(ctx, pointer, serial);
 }
@@ -301,6 +433,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *pointer, uint32
     if (ctx->active_output) {
         ctx->active_output->pointer_x = wl_fixed_to_double(sx);
         ctx->active_output->pointer_y = wl_fixed_to_double(sy);
+        draw_magnifier_lens(ctx->active_output, (int)ctx->active_output->pointer_x, (int)ctx->active_output->pointer_y);
     }
 }
 
