@@ -7,7 +7,7 @@ PACKAGE_NAME="vcpicker"
 VERSION="0.1.0"
 ARCH="amd64"
 MAINTAINER="Vaxp"
-DESCRIPTION="A color picker for Linux"
+DESCRIPTION="A reactive C++20 color studio for VAXP OS (ENKI UI Framework)"
 
 # Directories
 BUILD_DIR="build"
@@ -29,7 +29,7 @@ Priority: optional
 Architecture: $ARCH
 Maintainer: $MAINTAINER <maintainer@example.com>
 Description: $DESCRIPTION
-Depends: libgtk-4-1, libglib2.0-0, libx11-6, libwayland-client0, libwayland-cursor0
+Depends: libx11-6, libwayland-client0, libwayland-cursor0
 EOF
 
 echo "Building the project..."

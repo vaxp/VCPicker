@@ -1,13 +1,8 @@
-vaxp_src = [
-  'main.c',
-  'theme_manager.c',
-  'core/color.c',
-  'core/palette.c',
-  'ui/window.c',
-  'ui/headerbar.c',
-  'portal/picker.c',
-  resources,
-]
+vaxp_src = files(
+  'main.cpp',
+  'ui/vcpicker_app.cpp',
+  'portal/screen_picker.cpp',
+)
 
 if have_wayland
   wayland_scanner_c = generator(
@@ -31,11 +26,15 @@ if have_wayland
     vaxp_src += wayland_scanner_c.process(p)
     vaxp_src += wayland_scanner_h.process(p)
   endforeach
-
-  vaxp_src += 'portal/wayland_picker.c'
 endif
 
+vaxp_inc = [
+  include_directories('.', 'core', 'portal', 'ui'),
+]
+
 executable('vcpicker', vaxp_src,
+  include_directories: vaxp_inc,
   dependencies: vaxp_deps,
+  cpp_args: ['-Wno-missing-field-initializers'],
   install: true,
 )

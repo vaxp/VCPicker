@@ -1,31 +1,47 @@
-# VCPicker
+# VCPicker — Desktop Color Studio
 
-**VCPicker** is a highly professional, modern, and lightweight color picker application designed specifically for the VAXP ecosystem. Built from the ground up utilizing **C** and **GTK4 / libadwaita**, it offers a sleek, hardware-accelerated user interface complete with custom native transparent styling and advanced precision tools for artists, designers, and developers.
+**VCPicker** is a high-performance, modern, and lightweight color studio designed natively for **VAXP OS**, powered by the **ENKI Reactive UI Framework (C++20)**.
+
+---
 
 ## ✨ Features
 
-- **🔍 Precision Screen Picking**: Pick any color from your screen reliably across both **Wayland** and **X11** display servers through native XDG Desktop Portal integration.
-- **🎨 Instant Color Formatting**: View and copy your matched colors immediately in multiple formats including **HEX, RGB, HSL, HSV**, and **CMYK**.
-- **🧠 Intelligent Palette Generation**: Automatically generates a mathematically perfect Complementary color for every color you pick.
-- **📊 WCAG Contrast Verification**: Instantly checks your chosen color against both pure white and pure black backgrounds, supplying real-time WCAG AA and AAA accessibility contrast scores.
-- **🖼️ Custom UI Aesthetics**: Native ARGB transparent window background powered by GTK CSS overrides for an elegant ecosystem appearance.
-- **�� System Integrations**: Packaged with a custom `.desktop` entry and `GSettings` DBus activatable environment.
+- ** Precision Screen Picking**: Native Wayland protocol integration (`zwlr_screencopy_v1`, `zwlr_layer_shell_v1`) with magnified loupe lens, alongside automatic fallback to X11 pointer grab.
+- **🎨 Instant Multi-Format Conversion**: Real-time reactive updates for **HEX**, **RGB**, **HSL**, **HSV**, and **CMYK**.
+- ** One-Click Native Clipboard**: Instant clipboard copy for each format via ENKI's native platform abstraction.
+- ** Harmonious Color Palette**: Real-time generation of mathematical **Complementary** and dual **Analogous** (+30° / -30°) swatches with instant one-click color switching.
+- ** WCAG 2.1 Accessibility Verification**: Live contrast ratio verification against pure white (`#FFFFFF`) and deep black (`#000000`) with dynamic **AA** and **AAA** Pass/Fail status badges.
+- ** Sovereign VAXPOS Aesthetics**: Deep obsidian translucent glass surface, interactive VAXPOS client-side decorations (CSD), rounded geometry (16px), and hardware-accelerated rendering.
+
+---
 
 ## 🛠️ Build Requirements
 
 - `meson` (>= 0.62.0)
 - `ninja`
-- `gtk4` (>= 4.10.0)
+- `enki` (>= 0.1.0)
+- `wayland-client`, `wayland-cursor` (optional, for Wayland direct screencopy)
+- `x11` (optional, for X11 fallback)
+
+---
 
 ## 🚀 Building and Running
 
-You can easily build the project natively using the Meson build system:
-
 ```bash
 meson setup build --prefix=/usr --buildtype=release
-meson compile -C build
-meson install -C build
+ninja -C build
+./build/src/vcpicker
+```
+
+To install system-wide:
+```bash
+sudo meson install -C build
+```
+
+To build Debian package:
+```bash
+./package.sh
 ```
 
 ---
-*Built for VAXP-OS*
+*Developed for VAXP OS*
